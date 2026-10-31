@@ -1,0 +1,14 @@
+'use strict';
+const {test}=require('node:test'),assert=require('node:assert/strict'),H=require('../shared/hours.js');
+const days=['mon','tue','wed','thu','fri','sat','sun'],daily=Object.fromEntries(days.map(d=>[d,['04:00','24:00']])),at=s=>new Date(s);
+test('12-hour formatting incl. midnight and noon',()=>{assert.equal(H.fmt12(1440),'12:00 AM');assert.equal(H.fmt12(0),'12:00 AM');assert.equal(H.fmt12(240),'4:00 AM');assert.equal(H.fmt12(720),'12:00 PM');assert.equal(H.fmt12(1439),'11:59 PM')});
+test('daily summary text',()=>assert.equal(H.summary(daily),'Daily · 4:00 AM – 12:00 AM'));
+test('differing days list each day; closed days say closed',()=>{const h={...daily,sun:null};assert.match(H.summary(h),/Mon 4:00 AM – 12:00 AM/);assert.match(H.summary(h),/Sun closed/)});
+test('boundaries: 03:59 closed, 04:00 open, 23:59 open, 00:00 closed',()=>{const f=t=>H.info(daily,'Asia/Kolkata',0,at(t));
+ assert.equal(f('2026-10-26T03:59:00+05:30').open,false);assert.match(f('2026-10-26T03:59:00+05:30').text,/Next opening: today 4:00 AM/);
+ assert.equal(f('2026-10-26T04:00:00+05:30').open,true);assert.equal(f('2026-10-26T23:59:00+05:30').open,true);assert.equal(f('2026-10-26T23:59:00+05:30').text,'Open today until 12:00 AM');
+ assert.equal(f('2026-10-27T00:00:00+05:30').open,false)});
+test('preparation time must fit before midnight',()=>{assert.equal(H.info(daily,'Asia/Kolkata',15,at('2026-10-26T23:44:00+05:30')).open,true);assert.equal(H.info(daily,'Asia/Kolkata',15,at('2026-10-26T23:46:00+05:30')).open,false)});
+test('same instant is evaluated in the configured timezone',()=>{const t=at('2026-10-26T12:00:00+05:30');assert.equal(H.info(daily,'Asia/Kolkata',0,t).open,true);assert.equal(H.info(daily,'America/New_York',0,t).open,false)});
+test('closed day points to the next opening day',()=>{const h={...daily,tue:null};const r=H.info(h,'Asia/Kolkata',0,at('2026-10-27T12:00:00+05:30'));assert.equal(r.open,false);assert.match(r.text,/Next opening: tomorrow 4:00 AM/)});
+test('validation',()=>{assert.equal(H.validate(daily),'');assert.match(H.validate({}),/not configured/);assert.match(H.validate({...daily,mon:['25:00','26:00']}),/invalid/);assert.match(H.validate({...daily,mon:['10:00','09:00']}),/invalid/)});

@@ -1,0 +1,80 @@
+'use strict';
+const {test,before,after}=require('node:test'),assert=require('node:assert/strict'),{spawn}=require('node:child_process'),http=require('node:http'),fs=require('node:fs'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const ROOT=path.join(__dirname,'..'),def=JSON.parse(fs.readFileSync(path.join(ROOT,'config.default.json'),'utf8'));
+// TEST FIXTURES ONLY: fake zones/addresses, never shipped. Config files hold OVERRIDES on top of config.default.json.
+const days=['mon','tue','wed','thu','fri','sat','sun'],NOON={NODE_ENV:'test',MM_NOW:'2026-10-26T12:00:00+05:30'};
+const fx={schemaVersion:2,pickup:{enabled:true,address:'TEST pickup address',prepMinutes:15},delivery:{enabled:true,prepMinutes:15,zones:[{name:'Test Zone A',pins:['400001'],fee:40,minOrder:300,freeAbove:900,etaMin:20,etaMax:35}]},hours:Object.fromEntries(days.map(d=>[d,['00:00','24:00']]))};
+const procs=[];
+async function start(port,config,env={}){const dir=fs.mkdtempSync(path.join(os.tmpdir(),'mm-'));if(config)fs.writeFileSync(path.join(dir,'config.json'),JSON.stringify(config));
+ const p=spawn(process.execPath,['server.js'],{cwd:ROOT,env:{...process.env,...NOON,PORT:port,DATA_DIR:dir,ADMIN_TOKEN:'a'.repeat(32),...env}});procs.push(p);p.stderr.on('data',d=>process.stderr.write(d));
+ await new Promise((ok,no)=>{p.stdout.on('data',d=>/running at/.test(d)&&ok());p.on('error',no);setTimeout(()=>no(new Error('start timeout')),5000)});return{base:'http://127.0.0.1:'+port,dir}}
+const call=async(s,m,u,b,h={})=>{const r=await fetch(s.base+u,{method:m,headers:{'Content-Type':'application/json',...h},body:b?JSON.stringify(b):undefined});return{status:r.status,body:await r.json()}};
+const item=(id,q=1)=>({id,q,s:0,m:0,w:'Regular'}),good={name:'Test Customer',phone:'9876543210',payment:'receipt'};
+let A,B,C,P,mock;
+before(async()=>{
+ mock=http.createServer((req,res)=>{let b='';req.on('data',c=>b+=c);req.on('end',()=>{res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({id:'order_TEST1'}))})});await new Promise(r=>mock.listen(4795,r));
+ A=await start(4101,{schemaVersion:2,mode:'production',pricesConfirmed:false,payment:{allowPayOnReceipt:false}});P=await start(4105,null);B=await start(4102,fx,{RAZORPAY_KEY_ID:'rzp_test_x',RAZORPAY_KEY_SECRET:'secret123',RAZORPAY_API_BASE:'http://127.0.0.1:4795'});C=await start(4103,fx,{RAZORPAY_KEY_ID:'rzp_test_x',RAZORPAY_KEY_SECRET:'secret123',RAZORPAY_API_BASE:'http://127.0.0.1:4796'})});
+after(()=>{procs.forEach(p=>p.kill());mock.close()});
+test('production mode with nothing configured: ordering refused, no internal reasons shown to customers',async()=>{const c=await call(A,'GET','/api/config');assert.equal(c.body.ordering.enabled,false);assert.match(c.body.ordering.message,/temporarily unavailable/i);assert.ok(!JSON.stringify(c.body).includes('owner has not'));
+ const o=await call(A,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good});assert.equal(o.status,503);assert.ok(!JSON.stringify(o.body).includes('reasons'));
+ const r=await call(A,'GET','/api/admin/readiness',null,{Authorization:'Bearer '+'a'.repeat(32)});assert.ok(r.body.reasons.length>=3&&r.body.reasons.some(x=>/prices/.test(x))&&r.body.reasons.some(x=>/payment/.test(x)))});
+test('portfolio defaults: ready out of the box, hours text, no payment gateway needed',async()=>{const c=(await call(P,'GET','/api/config')).body;assert.equal(c.ordering.enabled,true);assert.equal(c.hoursSummary,'Daily · 4:00 AM – 12:00 AM');assert.equal(c.pickup.enabled,true);assert.equal(c.delivery.enabled,true);assert.equal(c.payment.online,false);assert.equal(c.payment.payOnReceipt,true);assert.equal(c.pickup.address,'');
+ const pk=await call(P,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good});assert.equal(pk.status,201);assert.equal(pk.body.order.status,'received');assert.equal(pk.body.order.payment,'pay_on_receipt');assert.notEqual(pk.body.order.payment,'paid');
+ const dl=await call(P,'POST','/api/orders',{items:[item('sig')],mode:'delivery',...good,address:'12 Sample Road, Sample Town',pin:'560001'});assert.equal(dl.status,201);assert.equal(dl.body.order.fee,50);assert.equal(dl.body.order.total,230);assert.equal(dl.body.order.eta,null);
+ assert.equal((await call(P,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,payment:'online'})).status,400)});
+test('every product has a valid price; invalid prices disable ordering and name the item (admin only)',async()=>{const cfg=(await call(P,'GET','/api/config')).body;assert.ok(cfg.products.length>=30&&cfg.products.every(p=>Number.isFinite(p.p)&&p.p>0&&p.id&&p.n&&p.img));
+ const X=await start(4106,{schemaVersion:2,products:[{id:'bad1',n:'Bad',cat:'drinks',p:0,c:'x',d:'x',img:'x'}]});assert.equal((await call(X,'GET','/api/config')).body.ordering.enabled,false);
+ const r=await call(X,'GET','/api/admin/readiness',null,{Authorization:'Bearer '+'a'.repeat(32)});assert.match(r.body.reasons.join(' '),/bad1/)});
+test('opening hours at the midnight boundary and in timezones (server)',async()=>{let port=4110;const ord=async(now,cfg={schemaVersion:2})=>{const S=await start(port++,cfg,{MM_NOW:now});return{cfg:(await call(S,'GET','/api/config')).body,o:await call(S,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good})}};
+ let r=await ord('2026-10-26T03:59:00+05:30');assert.equal(r.o.status,409);assert.match(r.o.body.error,/Next opening: today 4:00 AM/);assert.equal(r.cfg.status.open,false);
+ r=await ord('2026-10-26T04:00:00+05:30');assert.equal(r.o.status,201);assert.equal(r.cfg.status.text,'Open today until 12:00 AM');
+ r=await ord('2026-10-26T23:59:00+05:30');assert.equal(r.o.status,201);r=await ord('2026-10-27T00:00:00+05:30');assert.equal(r.o.status,409);
+ r=await ord('2026-10-26T23:50:00+05:30',{schemaVersion:2,pickup:{prepMinutes:15}});assert.equal(r.o.status,409);
+ r=await ord('2026-10-26T12:00:00+05:30',{schemaVersion:2,timezone:'America/New_York'});assert.equal(r.o.status,409)});
+test('an old full-copy data/config.json is migrated so it cannot keep ordering disabled',async()=>{const old={_readme:'old',pricesConfirmed:false,hours:{mon:null},payment:{allowPayOnReceipt:false},pickup:{enabled:false}};const S=await start(4120,old);
+ assert.equal((await call(S,'GET','/api/config')).body.ordering.enabled,true);assert.ok(fs.existsSync(path.join(S.dir,'config.legacy.json')));assert.equal(JSON.parse(fs.readFileSync(path.join(S.dir,'config.json'),'utf8')).schemaVersion,2)});
+test('coupons: valid applied, invalid and ineligible rejected, never stacked; totals exact',async()=>{
+ const ok=await call(B,'POST','/api/quote',{items:[item('blue'),item('carm')],mode:'pickup',coupon:'matcha10'});assert.equal(ok.body.sub,510);assert.equal(ok.body.disc,51);assert.equal(ok.body.total,459);assert.equal(ok.body.coupon.ok,true);
+ const bad=await call(B,'POST','/api/quote',{items:[item('blue'),item('carm')],mode:'pickup',coupon:'FAKE50'});assert.equal(bad.body.coupon.ok,false);assert.equal(bad.body.disc,0);
+ const low=await call(B,'POST','/api/quote',{items:[item('sig')],mode:'pickup',coupon:'MATCHA10'});assert.match(low.body.coupon.message,/Minimum order/);
+ const st=await call(B,'POST','/api/quote',{items:[item('blue'),item('carm'),item('sig')],mode:'pickup',coupon:'MATCHA10'});assert.match(st.body.coupon.message,/cannot be combined/);assert.equal(st.body.disc,180);
+ assert.equal((await call(B,'POST','/api/orders',{items:[item('blue'),item('carm')],mode:'pickup',...good,coupon:'FAKE50',key:'kc'})).status,422);
+ const placed=await call(B,'POST','/api/orders',{items:[item('blue'),item('carm')],mode:'pickup',...good,coupon:'MATCHA10',key:'kc2'});assert.equal(placed.status,201);assert.equal(placed.body.order.total,459)});
+test('delivery check: valid, unsupported and invalid PINs',async()=>{assert.equal((await call(B,'POST','/api/delivery/check',{pin:'400001'})).body.ok,true);assert.match((await call(B,'POST','/api/delivery/check',{pin:'400001'})).body.message,/Test Zone A.*₹40/);
+ assert.equal((await call(B,'POST','/api/delivery/check',{pin:'999999'})).body.ok,false);assert.equal((await call(B,'POST','/api/delivery/check',{pin:'12'})).body.ok,false)});
+test('server computes prices and offers; client price tampering is ignored',async()=>{const q=await call(B,'POST','/api/quote',{items:[{...item('sig',2),u:1,p:1},item('straw')],mode:'pickup'});assert.equal(q.body.sub,180*2+220);assert.equal(q.body.disc,180);assert.equal(q.body.total,400);
+ assert.equal((await call(B,'POST','/api/quote',{items:[item('nope')],mode:'pickup'})).status,400);assert.equal((await call(B,'POST','/api/quote',{items:[item('sig',99)],mode:'pickup'})).status,400);assert.equal((await call(B,'POST','/api/quote',{items:[{id:'sig',q:1,s:9,m:0,w:'Regular'}],mode:'pickup'})).status,400)});
+test('delivery fee, minimum order, free-delivery threshold and unsupported zone',async()=>{const f=await call(B,'POST','/api/quote',{items:[item('sig',2)],mode:'delivery',pin:'400001'});assert.equal(f.body.fee,40);assert.equal(f.body.total,400);assert.match(f.body.eta,/\d\d:\d\d – \d\d:\d\d/);
+ assert.match((await call(B,'POST','/api/quote',{items:[item('hot')],mode:'delivery',pin:'400001'})).body.problem,/Minimum order/);assert.match((await call(B,'POST','/api/quote',{items:[item('sig')],mode:'delivery',pin:'999999'})).body.problem,/do not deliver/);
+ assert.equal((await call(B,'POST','/api/quote',{items:[item('souf',3)],mode:'delivery',pin:'400001'})).body.fee,0)});
+test('pickup order on pay-on-receipt is accepted, persisted and trackable only with its token',async()=>{const o=await call(B,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,key:'k1'});assert.equal(o.status,201);assert.match(o.body.order.id,/^MM-\d{6}-[0-9A-F]{8}$/);assert.equal(o.body.order.confirmed,true);
+ const id=o.body.order.id,t=o.body.token,s=await call(B,'GET',`/api/orders/${id}?t=${t}`);assert.equal(s.body.order.status,'received');assert.equal((await call(B,'GET',`/api/orders/${id}?t=wrong`)).status,404);
+ const dup=await call(B,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,key:'k1'});assert.equal(dup.body.order.id,id);
+ const saved=JSON.parse(fs.readFileSync(path.join(B.dir,'orders.json'),'utf8'));assert.equal(Object.keys(saved).filter(k=>saved[k].key==='k1').length,1);assert.ok(!JSON.stringify(saved).includes(t))});
+test('invalid forms and unsupported delivery are rejected with field messages',async()=>{const e=await call(B,'POST','/api/orders',{items:[item('sig')],mode:'pickup',name:'',phone:'123',payment:'receipt'});assert.equal(e.status,400);assert.ok(e.body.fields.name&&e.body.fields.phone);
+ const d=await call(B,'POST','/api/orders',{items:[item('sig',2)],mode:'delivery',...good,address:'12 Test Street, Test City',pin:'999999'});assert.equal(d.status,422);
+ const a=await call(B,'POST','/api/orders',{items:[item('sig',2)],mode:'delivery',...good,address:'x',pin:'400001'});assert.ok(a.body.fields.address);
+ const ok=await call(B,'POST','/api/orders',{items:[item('sig',2)],mode:'delivery',...good,address:'12 Test Street, Test City',pin:'400001',key:'k2'});assert.equal(ok.status,201);assert.equal(ok.body.order.total,400)});
+test('online payment: not confirmed until a valid signature is verified',async()=>{const o=await call(B,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,payment:'online',key:'k3'});assert.equal(o.status,201);assert.equal(o.body.order.confirmed,false);assert.equal(o.body.razorpay.orderId,'order_TEST1');
+ const base={id:o.body.order.id,t:o.body.token,razorpay_order_id:'order_TEST1',razorpay_payment_id:'pay_1'};
+ assert.equal((await call(B,'POST','/api/payments/verify',{...base,razorpay_signature:'bad'})).status,400);assert.equal((await call(B,'GET',`/api/orders/${base.id}?t=${base.t}`)).body.order.confirmed,false);
+ const sig=crypto.createHmac('sha256','secret123').update('order_TEST1|pay_1').digest('hex'),v=await call(B,'POST','/api/payments/verify',{...base,razorpay_signature:sig});assert.equal(v.body.order.confirmed,true);assert.equal(v.body.order.payment,'paid')});
+test('failed payment provider: order is not placed',async()=>{const o=await call(C,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,payment:'online'});assert.equal(o.status,502);const s=JSON.parse(fs.readFileSync(path.join(C.dir,'orders.json'),'utf8'));assert.ok(Object.values(s).every(x=>x.status==='failed'))});
+test('webhook rejects bad signatures; admin needs the token and validates status',async()=>{assert.equal((await call(B,'POST','/api/payments/webhook',{event:'x'},{'x-razorpay-signature':'bad'})).status,400);
+ assert.equal((await call(B,'GET','/api/admin/orders')).status,401);const H={Authorization:'Bearer '+'a'.repeat(32)},l=await call(B,'GET','/api/admin/orders',null,H);assert.equal(l.status,200);const id=l.body.find(o=>o.confirmed).id;
+ assert.equal((await call(B,'PATCH','/api/admin/orders/'+id,{status:'bogus'},H)).status,400);assert.equal((await call(B,'PATCH','/api/admin/orders/'+id,{status:'preparing'},H)).body.order.status,'preparing');
+ const noadm=await start(4104,fx,{ADMIN_TOKEN:''});assert.equal((await call(noadm,'GET','/api/admin/orders')).status,503)});
+test('static files cannot escape /public and data is not served',async()=>{for(const u of['/../server.js','/..%2fdata/config.json','/data/orders.json']){const r=await fetch(B.base+u);assert.equal(r.status,404)}assert.equal((await fetch(B.base+'/')).status,200)});
+
+test('pickup: someone else can collect (validated and stored); delivery adds the courier charge',async()=>{
+ const noName=await call(P,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,collectorName:'A',collectorPhone:'123'});assert.equal(noName.status,400);assert.ok(noName.body.fields.collectorName&&noName.body.fields.collectorPhone);
+ const ok=await call(P,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,collectorName:'Ravi Kumar',collectorPhone:'9123456780',key:'kcol'});assert.equal(ok.status,201);assert.equal(ok.body.order.total,180);
+ const g=await call(P,'GET',`/api/orders/${ok.body.order.id}?t=${ok.body.token}`);assert.deepEqual(g.body.order.collector,{name:'Ravi Kumar',phone:'9123456780'});
+ const me=await call(P,'POST','/api/orders',{items:[item('sig')],mode:'pickup',...good,key:'kself'});assert.equal((await call(P,'GET',`/api/orders/${me.body.order.id}?t=${me.body.token}`)).body.order.collector,null);
+ const del=await call(P,'POST','/api/quote',{items:[item('sig')],mode:'delivery',pin:'560001'});assert.equal(del.body.fee,50);assert.equal(del.body.total,230);
+ const pk=await call(P,'POST','/api/quote',{items:[item('sig')],mode:'pickup'});assert.equal(pk.body.fee,0);assert.equal(pk.body.total,180);
+ const ck=await call(P,'POST','/api/delivery/check',{pin:'560001'});assert.match(ck.body.message,/Delivery charge ₹50/)});
+
+test('static assets: fingerprinted CSS/JS are cached long, pages are never stale',async()=>{const html=await (await fetch(P.base+'/')).text();const m=html.match(/assets\/(app\.[A-Za-z0-9]+\.css)/),j=html.match(/assets\/(app\.[A-Za-z0-9]+\.js)/);assert.ok(m&&j);
+ const css=await fetch(P.base+'/assets/'+m[1]);assert.equal(css.status,200);assert.match(css.headers.get('cache-control'),/immutable/);assert.equal((await fetch(P.base+'/')).headers.get('cache-control'),'no-cache');assert.match((await fetch(P.base+'/images/signature-matcha.png')).headers.get('cache-control'),/max-age=3600/);
+ const text=await css.text();assert.ok(!/data-theme|prefers-color-scheme/.test(text.replace(/\[data-theme=light\]/g,'')),'no dark-theme rules in the shipped CSS')});

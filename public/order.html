@@ -1,0 +1,41 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="color-scheme" content="only light"><meta name="theme-color" content="#F2EBDA"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Your order – Mood Matcha</title><link rel="icon" href="images/brand-logo-transparent.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#F2EBDA;--card:#FFFBF2;--ink:#2C3A25;--mut:#4A5840;--g:#46613A;--line:#D2DDB8;--ch:#3F5A33;--bgo:1;--serif:"Cormorant Garamond",Georgia,serif;--sans:"Inter",system-ui,sans-serif}
+
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans)}
+header{background:#DCE9BE;padding:14px 18px;display:flex;align-items:center;gap:12px}header img{height:48px;width:48px;border-radius:11px}header a{color:#2C3A25;text-decoration:none;font:600 22px var(--serif)}
+main{max-width:620px;margin:0 auto;padding:28px 18px 60px}h1{font:600 clamp(32px,6vw,44px)/1.1 var(--serif);margin:0 0 6px}.mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin:16px 0;box-shadow:0 1px 2px #2C3A2512}
+.rv{animation:up .7s cubic-bezier(.2,.7,.2,1) both}.rv:nth-of-type(2){animation-delay:.1s}.rv:nth-of-type(3){animation-delay:.2s}.rv:nth-of-type(4){animation-delay:.3s}@keyframes up{from{opacity:0;transform:translateY(16px)}}
+.num{font:600 28px var(--serif);letter-spacing:.02em;word-break:break-all}.pill{display:inline-block;background:var(--g);color:#fff;border-radius:99px;padding:3px 12px;font-size:13px;font-weight:600}
+
+ol{list-style:none;padding:0;margin:8px 0 0}li.s{padding:5px 0 5px 28px;position:relative;color:var(--mut)}li.s::before{content:'';position:absolute;left:3px;top:12px;width:12px;height:12px;border-radius:50%;border:2px solid var(--ch)}li.s.d{color:var(--g);font-weight:600}li.s.d::before{background:var(--g);border-color:var(--g)}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}.row small{display:block;color:var(--mut)}.tot{font-weight:600;border:0}.big{font-size:20px}
+.btn{display:inline-block;background:var(--g);color:#fff;border-radius:99px;padding:14px 28px;font-weight:600;text-decoration:none;transition:transform .25s,box-shadow .25s}.btn:hover{transform:translateY(-2px);box-shadow:0 8px 18px #46613A40}.btn:focus-visible{outline:3px solid var(--ch);outline-offset:3px}
+.er{color:#a3321f}@media(prefers-reduced-motion:reduce){.rv{animation:none}.btn{transition:none}}
+body{background:linear-gradient(180deg,#F5EEDD 0%,#EFF0D8 42%,#E4EDCB 100%)}</style></head><body>
+<header><a href="/" aria-label="Mood Matcha home"><img src="images/brand-logo-transparent.png" alt=""></a><a href="/">Mood Matcha</a></header>
+<main id="o" aria-live="polite"><p class="mut">Loading your order…</p></main>
+<script>
+const L={awaiting_payment:'Awaiting payment',failed:'Not placed',received:'Order received',accepted:'Accepted',preparing:'Being prepared',ready:'Ready for pickup',out_for_delivery:'Out for delivery',delivered:'Delivered',cancelled:'Cancelled'};
+const q=new URLSearchParams(location.search),isNew=q.get('new')==='1',e=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const m=n=>'₹'+(n%1?n.toFixed(2):n);
+const payText=o=>o.payment==='paid'?'Paid online':o.paymentMethod==='receipt'?(o.mode==='delivery'?'Payment due on delivery':'Payment due at pickup'):'Awaiting payment';
+async function go(){const box=document.getElementById('o');
+ try{const r=await fetch('/api/orders/'+encodeURIComponent(q.get('id')||'')+'?t='+encodeURIComponent(q.get('t')||''),{cache:'no-store'}),d=await r.json();
+  if(!r.ok){box.innerHTML='<h1>Order not found</h1><p class="er">'+e(d.error||'We could not find this order.')+'</p><p><a class="btn" href="/">Back to the menu</a></p>';return}
+  const o=d.order,steps=o.mode==='delivery'?['received','accepted','preparing','out_for_delivery','delivered']:['received','accepted','preparing','ready'],i=steps.indexOf(o.status),first=(o.name||'').split(' ')[0];
+  box.innerHTML=(o.confirmed?'<div class="rv"><span class="pill">'+e(L[o.status]||o.status)+'</span><h1 style="margin-top:12px">'+(isNew?'Thank you'+(first?', '+e(first):'')+'!':'Your order')+'</h1><p class="mut">'+(isNew?'Your order has been placed.':'Here is the latest on your order.')+'</p></div>':'<h1>Order not confirmed</h1><p class="er">This order has not been confirmed.</p>')+
+  '<div class="card rv"><div class="mut" style="font-size:13px;letter-spacing:.08em;text-transform:uppercase">Order number</div><div class="num">'+e(o.id)+'</div>'+
+  '<p style="margin:8px 0 0"><b>'+(o.mode==='delivery'?'Delivery':'Pickup')+'</b>'+(o.mode==='delivery'?' to '+e(d.order.address)+(d.order.pin?' – '+e(d.order.pin):''):(d.pickup.address||d.pickup.instructions?' · '+e(d.pickup.address||d.pickup.instructions):''))+'</p>'+
+  (d.order.collector?'<p style="margin:4px 0 0"><b>Collected by:</b> '+e(d.order.collector.name)+(d.order.collector.phone?' · '+e(d.order.collector.phone):'')+'</p>':'')+(o.eta?'<p class="mut" style="margin:4px 0 0">Estimate: '+e(o.eta)+' (an estimate, not live tracking)</p>':'')+'<p class="mut" style="margin:4px 0 0">'+e(d.hours)+'</p></div>'+
+  (o.confirmed?'<div class="card rv"><b>Order status</b><ol>'+steps.map((s,k)=>'<li class="s '+(k<=i?'d':'')+'">'+L[s]+'</li>').join('')+'</ol></div>':'')+
+  '<div class="card rv"><b>Your items</b>'+o.lines.map(l=>'<div class="row"><span>'+e(l.qty)+' × '+e(l.name)+(l.opt?'<small>'+e(l.opt)+'</small>':'')+(l.note?'<small>“'+e(l.note)+'”</small>':'')+'</span><span>'+m(l.total)+'</span></div>').join('')+
+  '<div class="row"><span>Subtotal</span><span>'+m(o.sub)+'</span></div>'+o.discounts.map(x=>'<div class="row"><span>'+e(x.name)+'</span><span>−'+m(x.amt)+'</span></div>').join('')+
+  (o.mode==='delivery'?'<div class="row"><span>Delivery charge</span><span>'+m(o.fee)+'</span></div>':'')+(o.tax>0?'<div class="row"><span>Tax</span><span>'+m(o.tax)+'</span></div>':'')+
+  '<div class="row tot big"><span>Total</span><span>'+m(o.total)+'</span></div><p class="mut" style="margin:6px 0 0">'+e(payText(o))+'</p></div>'+
+  (d.support.phone?'<p class="mut">Questions? Call '+e(d.support.phone)+'</p>':'')+'<p><a class="btn" href="/#drinks">Back to the menu</a></p>';
+  document.title=(isNew?'Thank you':'Order')+' '+o.id+' – Mood Matcha'}catch(x){box.innerHTML='<h1>Something went wrong</h1><p class="er">We could not load your order. Please refresh the page.</p>'}}
+go();setInterval(()=>{if(!document.hidden)go()},20000);
+</script></body></html>

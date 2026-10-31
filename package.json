@@ -1,0 +1,22 @@
+{
+  "name": "mood-matcha",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mood Matcha ordering site and server (no dependencies)",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "node dev.mjs",
+    "build": "node build.mjs",
+    "start": "node server.js",
+    "test": "node --test test/hours.test.js test/api.test.js test/serverless.test.js"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.0"
+  }
+}

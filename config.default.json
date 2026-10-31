@@ -1,0 +1,413 @@
+{
+  "schemaVersion": 2,
+  "_readme": "Shipped defaults. Owner changes go in data/config.json (only the fields you change). Set \"mode\":\"production\" to enforce launch checks (confirmed prices, pickup address, payment gateway).",
+  "mode": "portfolio",
+  "pricesConfirmed": true,
+  "business": {
+    "name": "Mood Matcha",
+    "phone": "",
+    "email": "",
+    "supportNote": ""
+  },
+  "timezone": "Asia/Kolkata",
+  "hours": {
+    "mon": [
+      "04:00",
+      "24:00"
+    ],
+    "tue": [
+      "04:00",
+      "24:00"
+    ],
+    "wed": [
+      "04:00",
+      "24:00"
+    ],
+    "thu": [
+      "04:00",
+      "24:00"
+    ],
+    "fri": [
+      "04:00",
+      "24:00"
+    ],
+    "sat": [
+      "04:00",
+      "24:00"
+    ],
+    "sun": [
+      "04:00",
+      "24:00"
+    ]
+  },
+  "pickup": {
+    "enabled": true,
+    "address": "",
+    "instructions": "Collect your order at the Mood Matcha counter when it is ready. Someone else can collect it for you: add their name at checkout and show the order number.",
+    "note": "",
+    "prepMinutes": null,
+    "allowCollector": true
+  },
+  "delivery": {
+    "enabled": true,
+    "prepMinutes": null,
+    "zones": [
+      {
+        "name": "Standard delivery",
+        "anyPin": true,
+        "pins": [],
+        "fee": 50,
+        "minOrder": 0,
+        "freeAbove": null,
+        "etaMin": null,
+        "etaMax": null
+      }
+    ],
+    "chargeNote": "The delivery charge covers courier travel and is added to your total."
+  },
+  "payment": {
+    "allowPayOnReceipt": true
+  },
+  "taxPercent": 0,
+  "options": {
+    "sizes": [
+      {
+        "n": "Regular",
+        "p": 0
+      },
+      {
+        "n": "Large",
+        "p": 40
+      }
+    ],
+    "milks": [
+      {
+        "n": "Whole milk",
+        "p": 0
+      },
+      {
+        "n": "Oat milk",
+        "p": 30
+      }
+    ],
+    "sweet": [
+      "No sugar",
+      "Less sweet",
+      "Regular",
+      "Extra sweet"
+    ]
+  },
+  "offers": [
+    {
+      "id": "b2g1",
+      "on": 1,
+      "t": "Buy 2 Get 1 Free",
+      "type": "b2g1",
+      "d": "Add any 3 drinks to your cart and the lowest-priced of every three is free.",
+      "cond": "Drinks only; desserts are excluded. Applied automatically in your cart. Cannot be combined with coupon codes."
+    },
+    {
+      "id": "duo",
+      "on": 0,
+      "t": "Matcha & Dessert Duo",
+      "amt": 50,
+      "d": "A drink and a dessert together for a fixed amount off.",
+      "cond": "Disabled until the owner confirms the amount and dates.",
+      "img": "matcha-tiramisu-drink-duo.png"
+    },
+    {
+      "id": "m10",
+      "on": 1,
+      "code": "MATCHA10",
+      "type": "pct",
+      "pct": 10,
+      "min": 500,
+      "d": "10% off orders of ₹500 or more.",
+      "cond": "Valid on orders of ₹500 or more. Cannot be combined with other offers.",
+      "showCode": true
+    }
+  ],
+  "products": [
+    {
+      "id": "sig",
+      "n": "Signature Matcha",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 180,
+      "d": "Our classic iced matcha latte.",
+      "best": 1,
+      "img": "signature-matcha.png"
+    },
+    {
+      "id": "straw",
+      "n": "Strawberry Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 220,
+      "d": "Matcha with strawberry.",
+      "best": 1,
+      "img": "strawberry-matcha.png"
+    },
+    {
+      "id": "van",
+      "n": "Vanilla Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 210,
+      "d": "Matcha with vanilla.",
+      "img": "vanilla-matcha.png"
+    },
+    {
+      "id": "pist",
+      "n": "Pistachio Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 240,
+      "d": "Matcha with pistachio.",
+      "img": "pistachio-matcha.png"
+    },
+    {
+      "id": "coco",
+      "n": "Coconut Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 230,
+      "d": "Matcha with coconut.",
+      "img": "coconut-matcha.png"
+    },
+    {
+      "id": "hot",
+      "n": "Hot Matcha",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 170,
+      "d": "A whisked hot matcha latte.",
+      "img": "hot-matcha.png"
+    },
+    {
+      "id": "hcl",
+      "n": "Hot Classic Matcha Latte",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 180,
+      "d": "A classic hot matcha latte.",
+      "img": "hot-classic-matcha-latte.png"
+    },
+    {
+      "id": "hbs",
+      "n": "Hot Brown Sugar Matcha",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 200,
+      "d": "Hot matcha latte with brown sugar.",
+      "img": "hot-brown-sugar-matcha.png"
+    },
+    {
+      "id": "hpist",
+      "n": "Hot Pistachio Cream Matcha",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 230,
+      "d": "Hot matcha latte with pistachio.",
+      "img": "hot-pistachio-cream-matcha.png"
+    },
+    {
+      "id": "hvan",
+      "n": "Hot Vanilla Cloud Matcha",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 210,
+      "d": "Hot matcha latte with vanilla.",
+      "img": "hot-vanilla-cloud-matcha.png"
+    },
+    {
+      "id": "hstraw",
+      "n": "Hot Strawberry Matcha",
+      "c": "Hot Matcha",
+      "cat": "drinks",
+      "p": 220,
+      "d": "Hot matcha latte with strawberry.",
+      "img": "hot-strawberry-matcha_pn.jpg"
+    },
+    {
+      "id": "blue",
+      "n": "Blueberry Cheesecake Matcha",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 260,
+      "d": "Matcha with blueberry cheesecake flavour.",
+      "img": "signature-blueberry-cheesecake-matcha.png"
+    },
+    {
+      "id": "lav",
+      "n": "Lavender Dream Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 250,
+      "d": "Matcha with lavender.",
+      "img": "lavender-dream-matcha.png"
+    },
+    {
+      "id": "carm",
+      "n": "Salted Caramel Matcha",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 250,
+      "d": "Matcha with salted caramel.",
+      "img": "signature-salted-caramel-matcha.png"
+    },
+    {
+      "id": "rose",
+      "n": "Rose Matcha Latte",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 240,
+      "d": "Matcha with rose.",
+      "img": "signature-rose-matcha-latte.png"
+    },
+    {
+      "id": "wc",
+      "n": "White Chocolate Matcha",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 250,
+      "d": "Matcha with white chocolate.",
+      "img": "signature-white-chocolate-matcha.png"
+    },
+    {
+      "id": "bs",
+      "n": "Brown Sugar Matcha",
+      "c": "Signature",
+      "cat": "drinks",
+      "p": 230,
+      "d": "Matcha with brown sugar.",
+      "img": "signature-brown-sugar-matcha.png"
+    },
+    {
+      "id": "tira",
+      "n": "Matcha Tiramisu",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 260,
+      "d": "Layered matcha tiramisu.",
+      "img": "matcha-tiramisu.png"
+    },
+    {
+      "id": "cook",
+      "n": "Matcha Cookies",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 140,
+      "d": "Matcha cookies.",
+      "img": "matcha-cookies.png"
+    },
+    {
+      "id": "berry",
+      "n": "Matcha Berry Pancakes",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 300,
+      "d": "Matcha pancakes with berries.",
+      "img": "dessert-matcha-berry-pancakes.png"
+    },
+    {
+      "id": "puff",
+      "n": "Matcha Cream Puffs",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 220,
+      "d": "Cream puffs with matcha filling.",
+      "img": "dessert-matcha-cream-puffs.png"
+    },
+    {
+      "id": "lcake",
+      "n": "Matcha Layer Cake",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 240,
+      "d": "Layered matcha cake.",
+      "img": "dessert-matcha-layer-cake.png"
+    },
+    {
+      "id": "pud",
+      "n": "Matcha Pudding",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 180,
+      "d": "Matcha pudding.",
+      "img": "dessert-matcha-pudding.png"
+    },
+    {
+      "id": "souf",
+      "n": "Matcha Soufflé Pancakes",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 320,
+      "d": "Fluffy soufflé pancakes with matcha.",
+      "img": "dessert-matcha-souffle-pancakes.png"
+    },
+    {
+      "id": "cookie",
+      "n": "Cookie Crumble Matcha",
+      "c": "Flavoured",
+      "cat": "drinks",
+      "p": 260,
+      "d": "Layered iced matcha with a cookie crumble topping.",
+      "img": "cookie-crumble-matcha.png"
+    },
+    {
+      "id": "tart",
+      "n": "Matcha Cheesecake Tarts",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 280,
+      "d": "Matcha-glazed cheesecake tarts.",
+      "img": "matcha-cheesecake-tarts.png"
+    },
+    {
+      "id": "mille",
+      "n": "Matcha Mille Crêpe Cake",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 300,
+      "d": "Layered crêpe cake with a matcha glaze.",
+      "img": "matcha-mille-crepe-cake.png"
+    },
+    {
+      "id": "jar",
+      "n": "Matcha Cream Jar",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 200,
+      "d": "Matcha cream layered in a jar.",
+      "img": "matcha-cream-jar.png"
+    },
+    {
+      "id": "lava",
+      "n": "Matcha Glaze Cheesecake",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 280,
+      "d": "Cheesecake with a flowing matcha glaze.",
+      "img": "matcha-glaze-cheesecake.png"
+    },
+    {
+      "id": "parf",
+      "n": "Matcha Parfait",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 260,
+      "d": "A layered matcha parfait.",
+      "img": "matcha-parfait.png"
+    },
+    {
+      "id": "stira",
+      "n": "Strawberry Matcha Tiramisu",
+      "c": "Desserts",
+      "cat": "dessert",
+      "p": 290,
+      "d": "Matcha tiramisu topped with strawberry.",
+      "img": "strawberry-matcha-tiramisu.png"
+    }
+  ]
+}
